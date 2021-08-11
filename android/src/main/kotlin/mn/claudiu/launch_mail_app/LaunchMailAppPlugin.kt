@@ -22,7 +22,7 @@ class LaunchMailAppPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   /// This local reference serves to register the plugin with the Flutter Engine and unregister it
   /// when the Flutter Engine is detached from the Activity
   private lateinit var channel : MethodChannel
-  private lateinit var context: Context
+  private var context: Context? = null
   private var activity: Activity? = null
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -49,17 +49,21 @@ class LaunchMailAppPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    context = null
   }
 
   /// Taken from https://stackoverflow.com/a/58880268
   private fun emailAppIntent(): Intent? {
     val emailIntent = Intent(Intent.ACTION_VIEW, Uri.parse("mailto:"))
 
-    val activitiesHandlingEmails = context.packageManager.queryIntentActivities(emailIntent, 0)
+    if (context == null) return null
+
+    val activitiesHandlingEmails = context!!.packageManager.queryIntentActivities(emailIntent, 0)
+
     if (activitiesHandlingEmails.isNotEmpty()) {
       // use the first email package to create the chooserIntent
       val firstEmailPackageName = activitiesHandlingEmails.first().activityInfo.packageName
-      val firstEmailInboxIntent = context.packageManager.getLaunchIntentForPackage(firstEmailPackageName)
+      val firstEmailInboxIntent = context!!.packageManager.getLaunchIntentForPackage(firstEmailPackageName)
       val emailAppChooserIntent = Intent.createChooser(firstEmailInboxIntent, "")
 
       // created UI for other email packages and add them to the chooser
@@ -67,12 +71,12 @@ class LaunchMailAppPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
       for (i in 1 until activitiesHandlingEmails.size) {
         val activityHandlingEmail = activitiesHandlingEmails[i]
         val packageName = activityHandlingEmail.activityInfo.packageName
-        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+        val intent = context!!.packageManager.getLaunchIntentForPackage(packageName)
         emailInboxIntents.add(
                 LabeledIntent(
                         intent,
                         packageName,
-                        activityHandlingEmail.loadLabel(context.packageManager),
+                        activityHandlingEmail.loadLabel(context!!.packageManager),
                         activityHandlingEmail.icon
                 )
         )
